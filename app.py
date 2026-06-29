@@ -80,16 +80,18 @@ df = load_data()
 COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#60a5fa"]
 
 
-def base_layout(fig, height=360, **kwargs):
+def base_layout(fig, height=360, coloraxis_showscale=None, margin=None, **kwargs):
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(t=10, b=10, l=10, r=10),
+        margin=margin if margin is not None else dict(t=10, b=10, l=10, r=10),
         height=height,
         font=dict(size=12),
         **kwargs
     )
+    if coloraxis_showscale is not None:
+        fig.update_coloraxes(showscale=coloraxis_showscale)
     return fig
 
 
