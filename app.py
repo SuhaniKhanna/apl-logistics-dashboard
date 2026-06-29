@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 
 st.set_page_config(
     page_title="APL Logistics | Profitability Analysis",
-    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -14,7 +13,7 @@ st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0d0f14; }
     [data-testid="stSidebar"] { background-color: #111318; border-right: 1px solid #1f2130; }
-    
+
     .kpi-block {
         background-color: #13161f;
         border: 1px solid #1e2235;
@@ -36,11 +35,7 @@ st.markdown("""
         color: #f1f5f9;
         line-height: 1;
     }
-    .kpi-sub {
-        font-size: 0.75rem;
-        color: #4b5563;
-        margin-top: 5px;
-    }
+    .kpi-sub { font-size: 0.75rem; color: #4b5563; margin-top: 5px; }
     .kpi-pos { color: #34d399; }
     .kpi-neg { color: #f87171; }
 
@@ -54,16 +49,14 @@ st.markdown("""
         padding-bottom: 8px;
         border-bottom: 1px solid #1e2235;
     }
-    
-    div[data-testid="stTabs"] button {
+    .analyst-note {
+        background-color: #13161f;
+        border-left: 3px solid #6366f1;
+        padding: 10px 14px;
+        border-radius: 0 6px 6px 0;
         font-size: 0.82rem;
-        font-weight: 600;
-        color: #6b7280;
-        padding: 8px 16px;
-    }
-    div[data-testid="stTabs"] button[aria-selected="true"] {
-        color: #f1f5f9;
-        border-bottom: 2px solid #6366f1;
+        color: #9ca3af;
+        margin: 10px 0 20px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -84,7 +77,23 @@ def load_data():
 
 df = load_data()
 
-# ── SIDEBAR ────────────────────────────────────────────────────────
+COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#60a5fa"]
+
+
+def base_layout(fig, height=360, **kwargs):
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=height,
+        font=dict(size=12),
+        **kwargs
+    )
+    return fig
+
+
+# ── SIDEBAR ────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### APL Logistics")
     st.markdown(
@@ -93,6 +102,7 @@ with st.sidebar:
     )
     st.divider()
     st.markdown("**Filters**")
+    st.caption("Defaults show full dataset. Narrow down by market, segment, or category.")
 
     sel_market = st.selectbox(
         "Market",
@@ -121,8 +131,9 @@ with st.sidebar:
 
     st.divider()
     st.caption("180,519 orders · 40 fields")
+    st.caption("Source: APL Logistics (KWE Group)")
 
-# ── FILTERS ────────────────────────────────────────────────────────
+# ── APPLY FILTERS ──────────────────────────────────────────
 fdf = df.copy()
 if sel_market != "All":
     fdf = fdf[fdf["Market"] == sel_market]
@@ -137,11 +148,11 @@ fdf = fdf[
     (fdf["Order Item Discount Rate"] <= sel_discount[1])
 ]
 
-# ── HEADER ─────────────────────────────────────────────────────────
+# ── HEADER ─────────────────────────────────────────────────
 st.markdown("## APL Logistics — Profitability Intelligence")
 st.markdown(
     f"<span style='color:#6b7280;font-size:0.85rem'>"
-    f"Showing {len(fdf):,} of {len(df):,} orders</span>",
+    f"Showing {len(fdf):,} of {len(df):,} orders after filters applied</span>",
     unsafe_allow_html=True
 )
 st.divider()
@@ -153,29 +164,10 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "Discount Impact"
 ])
 
-DARK = "plotly_dark"
-PAPER = "rgba(0,0,0,0)"
-PLOT = "rgba(0,0,0,0)"
-MARGIN = dict(t=10, b=10, l=10, r=10)
-COLORS = ["#6366f1", "#34d399", "#fb923c", "#f472b6", "#60a5fa"]
 
-
-def chart_layout(fig, height=360, **kwargs):
-    fig.update_layout(
-        template=DARK,
-        paper_bgcolor=PAPER,
-        plot_bgcolor=PLOT,
-        margin=MARGIN,
-        height=height,
-        font=dict(family="Inter, sans-serif", size=12),
-        **kwargs
-    )
-    return fig
-
-
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 # TAB 1 — REVENUE & PROFIT
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 with tab1:
     total_rev = fdf["Sales"].sum()
     total_profit = fdf["Order Profit Per Order"].sum()
@@ -198,10 +190,15 @@ with tab1:
     kpi(c1, "Total Revenue", f"${total_rev/1e6:.2f}M", "gross sales")
     kpi(c2, "Total Profit", f"${total_profit/1e6:.2f}M", "after costs", total_profit > 0)
     kpi(c3, "Profit Margin", f"{margin_pct:.1f}%", "of revenue retained", margin_pct > 10)
-    kpi(c4, "Loss Orders", f"{loss_pct:.1f}%", f"{loss_orders:,} orders unprofitable", loss_pct < 20)
+    kpi(c4, "Loss Order Rate", f"{loss_pct:.1f}%", f"{loss_orders:,} unprofitable orders", loss_pct < 20)
     kpi(c5, "Avg Order Value", f"${avg_order:.0f}", "per transaction")
 
-    st.markdown('<div class="section-title">Revenue vs Profit by Market</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Revenue vs. Profit by Market</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="analyst-note">Europe and LATAM lead on volume, but margin compression is visible across all markets — '
+        'high revenue does not reliably translate to high profit here.</div>',
+        unsafe_allow_html=True
+    )
 
     mkt = fdf.groupby("Market").agg(
         Revenue=("Sales", "sum"),
@@ -213,10 +210,18 @@ with tab1:
     col_a, col_b = st.columns([3, 2])
     with col_a:
         fig = go.Figure()
-        fig.add_bar(name="Revenue", x=mkt["Market"], y=mkt["Revenue"], marker_color="#6366f1")
-        fig.add_bar(name="Profit", x=mkt["Market"], y=mkt["Profit"], marker_color="#34d399")
-        chart_layout(fig, barmode="group",
-                     legend=dict(orientation="h", yanchor="bottom", y=1.02))
+        fig.add_bar(
+            name="Revenue", x=mkt["Market"], y=mkt["Revenue"],
+            marker_color="#6366f1"
+        )
+        fig.add_bar(
+            name="Profit", x=mkt["Market"], y=mkt["Profit"],
+            marker_color="#34d399"
+        )
+        base_layout(
+            fig, barmode="group",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02)
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     with col_b:
@@ -226,11 +231,13 @@ with tab1:
             text=mkt["Margin %"].apply(lambda x: f"{x:.1f}%")
         )
         fig2.update_traces(textposition="outside")
-        chart_layout(fig2, coloraxis_showscale=False,
-                     xaxis_title="Margin %", yaxis_title="")
+        base_layout(
+            fig2, coloraxis_showscale=False,
+            xaxis_title="Margin %", yaxis_title=""
+        )
         st.plotly_chart(fig2, use_container_width=True)
 
-    st.markdown('<div class="section-title">Regional Profitability Breakdown</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Profitability by Order Region</div>', unsafe_allow_html=True)
 
     reg = fdf.groupby("Order Region").agg(
         Revenue=("Sales", "sum"),
@@ -249,16 +256,23 @@ with tab1:
         textposition="top center",
         marker=dict(opacity=0.85, line=dict(width=1, color="#1e2235"))
     )
-    chart_layout(fig3, height=400,
-                 xaxis_title="Revenue ($)", yaxis_title="Profit ($)")
+    base_layout(
+        fig3, height=400,
+        xaxis_title="Revenue ($)", yaxis_title="Profit ($)"
+    )
     st.plotly_chart(fig3, use_container_width=True)
 
 
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 # TAB 2 — CUSTOMER VALUE
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 with tab2:
     st.markdown('<div class="section-title">Customer Profit Ranking</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="analyst-note">Customers with the highest revenue are not always the most profitable. '
+        'The bottom segment often signals pricing or discount policy issues rather than low volume.</div>',
+        unsafe_allow_html=True
+    )
 
     cust = fdf.groupby(["Customer Id", "Customer Name", "Customer Segment"]).agg(
         Revenue=("Sales", "sum"),
@@ -281,7 +295,7 @@ with tab2:
             color="Profit", color_continuous_scale="Greens",
             hover_data={"Revenue": ":,.0f", "Margin %": ":.1f", "Orders": True}
         )
-        chart_layout(fig_t, height=420, coloraxis_showscale=False, yaxis_title="")
+        base_layout(fig_t, height=420, coloraxis_showscale=False, yaxis_title="")
         st.plotly_chart(fig_t, use_container_width=True)
 
     with col2:
@@ -291,10 +305,10 @@ with tab2:
             color="Profit", color_continuous_scale="Reds_r",
             hover_data={"Revenue": ":,.0f", "Margin %": ":.1f", "Orders": True}
         )
-        chart_layout(fig_b, height=420, coloraxis_showscale=False, yaxis_title="")
+        base_layout(fig_b, height=420, coloraxis_showscale=False, yaxis_title="")
         st.plotly_chart(fig_b, use_container_width=True)
 
-    st.markdown('<div class="section-title">Segment Contribution</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Segment Breakdown</div>', unsafe_allow_html=True)
 
     seg = fdf.groupby("Customer Segment").agg(
         Revenue=("Sales", "sum"),
@@ -306,30 +320,42 @@ with tab2:
 
     ca, cb, cc = st.columns(3)
 
-    fig_pr = px.pie(seg, values="Revenue", names="Customer Segment",
-                    color_discrete_sequence=COLORS, title="Revenue share")
-    fig_pr.update_layout(template=DARK, paper_bgcolor=PAPER,
-                         margin=dict(t=40, b=0), height=280)
+    fig_pr = px.pie(
+        seg, values="Revenue", names="Customer Segment",
+        color_discrete_sequence=COLORS, title="Revenue share by segment"
+    )
+    fig_pr.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=40, b=0), height=280
+    )
     ca.plotly_chart(fig_pr, use_container_width=True)
 
-    fig_pp = px.pie(seg, values="Profit", names="Customer Segment",
-                    color_discrete_sequence=COLORS, title="Profit share")
-    fig_pp.update_layout(template=DARK, paper_bgcolor=PAPER,
-                         margin=dict(t=40, b=0), height=280)
+    fig_pp = px.pie(
+        seg, values="Profit", names="Customer Segment",
+        color_discrete_sequence=COLORS, title="Profit share by segment"
+    )
+    fig_pp.update_layout(
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=40, b=0), height=280
+    )
     cb.plotly_chart(fig_pp, use_container_width=True)
 
-    fig_pm = px.bar(seg, x="Customer Segment", y="Margin %",
-                    color="Margin %", color_continuous_scale="RdYlGn",
-                    text=seg["Margin %"].apply(lambda x: f"{x:.1f}%"),
-                    title="Margin % by segment")
+    fig_pm = px.bar(
+        seg, x="Customer Segment", y="Margin %",
+        color="Margin %", color_continuous_scale="RdYlGn",
+        text=seg["Margin %"].apply(lambda x: f"{x:.1f}%"),
+        title="Profit margin by segment"
+    )
     fig_pm.update_traces(textposition="outside")
-    chart_layout(fig_pm, height=280, coloraxis_showscale=False,
-                 margin=dict(t=40, b=0))
+    base_layout(
+        fig_pm, height=280, coloraxis_showscale=False,
+        margin=dict(t=40, b=0)
+    )
     cc.plotly_chart(fig_pm, use_container_width=True)
 
     st.markdown('<div class="section-title">Customer Detail</div>', unsafe_allow_html=True)
 
-    view = st.radio("View", ["Most profitable", "Loss-making"], horizontal=True)
+    view = st.radio("Show", ["Most profitable", "Loss-making"], horizontal=True)
     if view == "Most profitable":
         tbl = cust[cust["Profit"] > 0].head(50).copy()
     else:
@@ -344,11 +370,17 @@ with tab2:
     st.dataframe(tbl_display, use_container_width=True, height=380, hide_index=True)
 
 
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 # TAB 3 — PRODUCT & CATEGORY
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 with tab3:
-    st.markdown('<div class="section-title">Category Margin Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Category Margin Ranking</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="analyst-note">Strength Training sits at 0.6% margin — effectively a break-even category. '
+        'Men\'s Clothing at 4.6% is similarly concerning given its order volume. '
+        'Both warrant a pricing review before the next planning cycle.</div>',
+        unsafe_allow_html=True
+    )
 
     cat = fdf.groupby("Category Name").agg(
         Revenue=("Sales", "sum"),
@@ -365,7 +397,7 @@ with tab3:
         text=cat["Margin %"].apply(lambda x: f"{x:.1f}%")
     )
     fig_cat.update_traces(textposition="outside")
-    chart_layout(
+    base_layout(
         fig_cat,
         height=max(420, len(cat) * 22),
         coloraxis_showscale=False,
@@ -375,7 +407,7 @@ with tab3:
     )
     st.plotly_chart(fig_cat, use_container_width=True)
 
-    st.markdown('<div class="section-title">Revenue vs Profit — Category View</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Revenue vs. Profit by Category</div>', unsafe_allow_html=True)
 
     fig_bub = px.scatter(
         cat, x="Revenue", y="Profit", size="Orders",
@@ -383,14 +415,18 @@ with tab3:
         color_continuous_scale="RdYlGn",
         hover_data={"Margin %": ":.2f", "Orders": ":,"}
     )
-    fig_bub.add_hline(y=0, line_dash="dash", line_color="#f87171",
-                      annotation_text="Break-even")
+    fig_bub.add_hline(
+        y=0, line_dash="dash", line_color="#f87171",
+        annotation_text="Break-even line"
+    )
     fig_bub.update_traces(textposition="top center", marker=dict(opacity=0.8))
-    chart_layout(fig_bub, height=480,
-                 xaxis_title="Revenue ($)", yaxis_title="Profit ($)")
+    base_layout(
+        fig_bub, height=480,
+        xaxis_title="Revenue ($)", yaxis_title="Profit ($)"
+    )
     st.plotly_chart(fig_bub, use_container_width=True)
 
-    st.markdown('<div class="section-title">Product-Level Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Product-Level View</div>', unsafe_allow_html=True)
 
     prod = fdf.groupby("Product Name").agg(
         Revenue=("Sales", "sum"),
@@ -399,7 +435,7 @@ with tab3:
     ).reset_index()
     prod["Margin %"] = (prod["Profit"] / prod["Revenue"] * 100).round(2)
 
-    cp1, cp2 = st.columns(2)
+    cp1, cp2 = st.columns([3, 2])
 
     with cp1:
         st.markdown("**Top 15 products by revenue**")
@@ -409,12 +445,14 @@ with tab3:
             color="Margin %", color_continuous_scale="RdYlGn",
             hover_data={"Profit": ":,.0f", "Margin %": ":.1f"}
         )
-        chart_layout(fig_tp, height=480,
-                     yaxis=dict(autorange="reversed"), yaxis_title="")
+        base_layout(
+            fig_tp, height=480,
+            yaxis=dict(autorange="reversed"), yaxis_title=""
+        )
         st.plotly_chart(fig_tp, use_container_width=True)
 
     with cp2:
-        st.markdown("**High revenue, low margin — products at risk**")
+        st.markdown("**High revenue, weak margin — products to watch**")
         at_risk = prod[prod["Revenue"] > prod["Revenue"].quantile(0.5)]
         at_risk = at_risk.sort_values("Margin %").head(15)
         fig_ar = px.bar(
@@ -422,16 +460,24 @@ with tab3:
             color="Margin %", color_continuous_scale="RdYlGn",
             hover_data={"Revenue": ":,.0f", "Profit": ":,.0f"}
         )
-        chart_layout(fig_ar, height=480,
-                     yaxis=dict(autorange="reversed"), yaxis_title="")
+        base_layout(
+            fig_ar, height=480,
+            yaxis=dict(autorange="reversed"), yaxis_title=""
+        )
         st.plotly_chart(fig_ar, use_container_width=True)
 
 
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 # TAB 4 — DISCOUNT IMPACT
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════
 with tab4:
     st.markdown('<div class="section-title">Profit Ratio by Discount Tier</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="analyst-note">Discounting beyond 20% shows a clear and consistent drop in profit ratio. '
+        'The 30%+ tier is where most margin destruction happens — '
+        'and it affects a non-trivial share of total order volume.</div>',
+        unsafe_allow_html=True
+    )
 
     disc = fdf.copy()
     disc["Discount Bucket"] = pd.cut(
@@ -457,9 +503,11 @@ with tab4:
         )
         fig_d1.add_hline(y=0, line_dash="dash", line_color="#f87171")
         fig_d1.update_traces(textposition="outside")
-        chart_layout(fig_d1, height=360, coloraxis_showscale=False,
-                     margin=dict(t=40, b=10, l=10, r=10),
-                     yaxis_title="Profit Ratio")
+        base_layout(
+            fig_d1, height=360, coloraxis_showscale=False,
+            margin=dict(t=40, b=10, l=10, r=10),
+            yaxis_title="Profit Ratio"
+        )
         st.plotly_chart(fig_d1, use_container_width=True)
 
     with cd2:
@@ -475,9 +523,12 @@ with tab4:
             marker=dict(size=7), yaxis="y2"
         )
         fig_d2.update_layout(
-            title="Order volume vs total profit by tier",
-            template=DARK, paper_bgcolor=PAPER, plot_bgcolor=PLOT,
-            height=360, margin=dict(t=40, b=10, l=10, r=10),
+            title="Order volume vs. total profit by discount tier",
+            template="plotly_dark",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            height=360,
+            margin=dict(t=40, b=10, l=10, r=10),
             yaxis=dict(title="Orders", side="left"),
             yaxis2=dict(title="Total Profit ($)", overlaying="y", side="right"),
             legend=dict(orientation="h", yanchor="bottom", y=1.02)
@@ -487,18 +538,17 @@ with tab4:
     st.markdown('<div class="section-title">What-If: Discount Cap Simulator</div>', unsafe_allow_html=True)
     st.markdown(
         "<span style='color:#6b7280;font-size:0.85rem'>"
-        "Simulate how capping the discount rate would recover profit across the portfolio."
+        "Use this to estimate how much profit could be recovered by capping discounts at a given rate."
         "</span>",
         unsafe_allow_html=True
     )
 
     cs1, cs2, cs3 = st.columns(3)
-
     with cs1:
         sim_cap = st.slider(
             "Cap discount rate at", 0.0, 0.30, 0.15, step=0.01,
             format="%.2f",
-            help="Orders above this discount rate will have their discount reduced to this cap in the simulation"
+            help="Any order above this discount rate will be recalculated at the cap in the simulation"
         )
 
     baseline_profit = fdf["Order Profit Per Order"].sum()
@@ -530,7 +580,7 @@ with tab4:
         f"by capping discounts at {sim_cap*100:.0f}%."
     )
 
-    st.markdown('<div class="section-title">Discount Rate vs Profit Ratio — Order Distribution</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Discount Rate vs. Profit Ratio — Order Distribution</div>', unsafe_allow_html=True)
 
     sample = fdf.sample(min(5000, len(fdf)), random_state=42)
     fig_sc = px.scatter(
@@ -545,11 +595,15 @@ with tab4:
             "Order Item Profit Ratio": "Profit Ratio"
         }
     )
-    fig_sc.add_hline(y=0, line_dash="dash", line_color="#f87171",
-                     annotation_text="Break-even")
-    fig_sc.add_vline(x=sim_cap, line_dash="dot", line_color="#facc15",
-                     annotation_text=f"Cap: {sim_cap*100:.0f}%")
-    chart_layout(fig_sc, height=420)
+    fig_sc.add_hline(
+        y=0, line_dash="dash", line_color="#f87171",
+        annotation_text="Break-even"
+    )
+    fig_sc.add_vline(
+        x=sim_cap, line_dash="dot", line_color="#facc15",
+        annotation_text=f"Cap: {sim_cap*100:.0f}%"
+    )
+    base_layout(fig_sc, height=420)
     st.plotly_chart(fig_sc, use_container_width=True)
 
     st.markdown('<div class="section-title">Discount Impact by Category</div>', unsafe_allow_html=True)
@@ -573,7 +627,7 @@ with tab4:
 st.divider()
 st.markdown(
     "<span style='color:#374151;font-size:0.75rem'>"
-    "APL Logistics (KWE Group) · Supply Chain Profitability Analysis · Unified Mentor"
+    "APL Logistics (KWE Group) · Supply Chain Profitability Analysis · Unified Mentor Internship"
     "</span>",
     unsafe_allow_html=True
 )
